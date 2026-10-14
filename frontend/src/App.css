@@ -1,0 +1,529 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: #0d1117;
+  color: #c9d1d9;
+  font-family: 'Space Grotesk', sans-serif;
+  /* overflow-x: hidden; */
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background-color: #161b22;
+  border-bottom: 1px solid #30363d;
+  height: 60px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  z-index: 10;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-icon {
+  color: #58a6ff;
+}
+
+.logo h1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #e6edf3;
+  letter-spacing: -0.5px;
+  /* text-transform: lowercase; */
+}
+
+.logo h1 span {
+  color: #58a6ff;
+  font-weight: 500;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #30363d;
+  background-color: #21262d;
+  color: #c9d1d9;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Space Grotesk', sans-serif;
+  transition: all 0.2s;
+}
+
+.control-btn:hover {
+  background-color: #30363d;
+  border-color: #8b949e;
+}
+
+.control-btn.primary {
+  background-color: #238636;
+  border-color: #238636;
+  color: white;
+}
+
+.control-btn.primary:hover {
+  background-color: #2ea043;
+}
+
+.control-btn.primary:disabled {
+  background-color: #1f2937;
+  border-color: #1f2937;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.control-btn.secondary {
+  padding: 8px 10px;
+}
+
+/* Main Layout */
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Pane Styling */
+.editor-pane {
+  flex: 1;
+  border-right: 1px solid #30363d;
+  display: flex;
+  flex-direction: column;
+}
+
+.visualizer-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.pane-header {
+  height: 35px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  background-color: #161b22;
+  border-bottom: 1px solid #30363d;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Visualizer Sections */
+.viz-section {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid #30363d;
+  overflow: hidden;
+}
+
+/* Memory and Stack will grow automatically to fill empty space */
+.memory-section {
+  flex: 3; /* Takes up more room */
+  min-height: 150px; /* Prevents squishing too small */
+}
+
+.stack-section {
+  flex: 2; /* Takes up less room */
+  min-height: 100px;
+}
+
+/* Console is fixed height when open, and tiny when minimized */
+.console-section {
+  flex: 0 0 30%; /* Fixed at 30% height when open */
+}
+
+.console-section.minimized {
+  flex: 0 0 35px; /* Shrinks to just the header size */
+  border-bottom: none;
+}
+
+.viz-content {
+  flex: 1;
+  padding: 16px;
+  overflow: auto; /* Internal scrolling! */
+}
+
+.empty-state {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #484f58;
+  font-size: 14px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Step Indicator in Pane Header */
+.step-indicator {
+  margin-left: auto;
+  color: #58a6ff;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Memory Grid */
+.memory-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+/* Variable Box */
+.var-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 12px 20px;
+  min-width: 80px;
+  background-color: #161b22;
+  transition: all 0.2s ease;
+}
+
+.var-box:hover {
+  border-color: #58a6ff;
+  transform: translateY(-2px);
+}
+
+.var-box .var-name {
+  font-size: 12px;
+  color: #8b949e;
+  margin-bottom: 6px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.var-box .var-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e6edf3;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Monaco Editor Line Highlight */
+.line-highlight {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-left: 3px solid #58a6ff !important;
+}
+
+.line-glyph {
+  background: #58a6ff !important;
+  width: 5px !important;
+  margin-left: 3px;
+  border-radius: 2px;
+}
+
+/* Memory Item Layout */
+.memory-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.var-label {
+  font-size: 14px;
+  color: #58a6ff;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Array Styling */
+.array-box {
+  display: flex;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  overflow: hidden;
+  width: fit-content;
+  background-color: #161b22;
+}
+
+.array-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 16px;
+  border-right: 1px solid #30363d;
+  transition: all 0.3s ease;
+}
+
+.array-item:last-child {
+  border-right: none;
+}
+
+.array-index {
+  font-size: 10px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.array-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #c9d1d9;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Object Styling */
+.object-box {
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  background-color: #161b22;
+  padding: 8px 12px;
+  width: fit-content;
+}
+
+.object-property {
+  display: flex;
+  gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+}
+
+.prop-key {
+  color: #f0883e;
+}
+
+.prop-value {
+  color: #c9d1d9;
+}
+
+/* Event Log Styling */
+.event-log {
+  margin-top: 16px;
+  padding: 10px 14px;
+  background-color: rgba(88, 166, 255, 0.1);
+  border: 1px solid #58a6ff;
+  border-radius: 6px;
+  color: #58a6ff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Console Styling */
+.console-content {
+  padding: 8px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.console-line {
+  color: #c9d1d9;
+  word-break: break-all;
+}
+
+.console-arrow {
+  color: #58a6ff;
+  margin-right: 6px;
+}
+
+.error-log {
+  color: #ff7b72;
+}
+
+/* Pane Toggle Button */
+.pane-toggle-btn {
+  background: none;
+  border: none;
+  color: #8b949e;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  margin-left: auto; /* Pushes it to the right side of the header */
+}
+
+.pane-toggle-btn:hover {
+  background-color: #30363d;
+  color: #c9d1d9;
+}
+
+/* Flash Animation for ANY changing variable (primitive, array, or object) */
+.memory-item.flash-highlight {
+  animation: flash 1s ease-out;
+}
+
+@keyframes flash {
+  0% {
+    background-color: rgba(240, 136, 62, 0.4);
+    border-color: #f0883e;
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(240, 136, 62, 0.3);
+  }
+  100% {
+    background-color: #161b22;
+    border-color: #30363d;
+    transform: scale(1);
+    box-shadow: none;
+  }
+}
+
+/* Logo & Dropdown Layout */
+.logo-and-snippets {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+/* Snippets Dropdown */
+.snippets-dropdown {
+  background-color: #21262d;
+  color: #c9d1d9;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+}
+
+.snippets-dropdown:hover {
+  border-color: #8b949e;
+}
+
+.snippets-dropdown option {
+  background-color: #161b22;
+  color: #c9d1d9;
+}
+
+/* Highlight the array index currently being accessed by a pointer */
+.array-item.active-index {
+  background-color: rgba(88, 166, 255, 0.15);
+  box-shadow: inset 0 0 0 2px #58a6ff;
+  transform: translateY(-3px); /* Makes it pop out slightly */
+}
+
+.array-item.active-index .array-value {
+  color: #58a6ff;
+}
+
+/* =========================================
+   RESPONSIVE DESIGN (Mobile & Tablets)
+   ========================================= */
+
+/* =========================================
+   RESPONSIVE DESIGN (Mobile & Tablets)
+   ========================================= */
+
+/* =========================================
+   RESPONSIVE DESIGN (Mobile & Tablets)
+   ========================================= */
+
+/* =========================================
+   RESPONSIVE DESIGN (Mobile & Tablets)
+   ========================================= */
+
+/* =========================================
+   RESPONSIVE DESIGN (Mobile & Tablets)
+   ========================================= */
+
+/* =========================================
+   RESPONSIVE DESIGN (Mobile & Tablets)
+   ========================================= */
+
+@media (max-width: 900px) {
+  /* Allow header to wrap items to multiple lines */
+  .header {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 10px;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  /* Make logo and dropdown take full width on their own row */
+  .logo-and-snippets {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* Ensure the dropdown shrinks to fit */
+  .snippets-dropdown {
+    flex: 1;
+    max-width: 200px;
+  }
+
+  /* Controls go on the next row, centered */
+  .controls {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  /* FORCE the main content to stack vertically */
+  .main-content {
+    flex-direction: column !important;
+  }
+
+  /* FORCE the editor to take up top half */
+  .editor-pane {
+    width: 100% !important;
+    height: 40vh !important;
+    border-right: none !important;
+    border-bottom: 1px solid #30363d !important;
+    flex: none !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* FORCE the visualizer to take up bottom half */
+  .visualizer-pane {
+    width: 100% !important;
+    height: 60vh !important;
+    flex: none !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+  }
+  
+    /* Give Memory the majority of the space on mobile */
+  .memory-section {
+    flex: 3 1 65% !important; /* Memory gets 65% of the bottom half */
+    min-height: 150px;
+  }
+  
+  .stack-section {
+    flex: 2 1 35% !important; /* Call stack gets 35% of the bottom half */
+    min-height: 100px;
+  }
+
+  .array-box {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
