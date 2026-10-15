@@ -15,10 +15,9 @@ for (let i = 0; i < arr.length; i++) {
   const [isRunning, setIsRunning] = useState(false);
   const [frames, setFrames] = useState([]);
   const [currentStep, setCurrentStep] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false); // NEW: Auto-play state
+  const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(800);
-  // const currentLogs = frames.length > 0 ? frames[currentStep].logs : [];
-  const [isConsoleOpen, setIsConsoleOpen] = useState(true);
+  const [activePanel, setActivePanel] = useState('memory'); // 'memory' | 'stack' | 'console'
   const [previewVars, setPreviewVars] = useState(() => extractStaticVariables(`let arr = [10, 20, 30];
 let sum = 0;
 for (let i = 0; i < arr.length; i++) {
@@ -329,15 +328,38 @@ for (let i = 0; i < arr.length; i++) {
           />
         </div>
 
+
         <div className="visualizer-pane">
-          {/* Top Right: Memory & Variables (45% height) */}
-          <div className="viz-section memory-section">
-            <div className="pane-header">
-              <span>Memory & Variables</span>
-              {frames.length > 0 && (
-                <span className="step-indicator">Step {currentStep + 1} / {frames.length}</span>
-              )}
-            </div>
+
+          {/* ── Tab Bar ──────────────────────────────────────────────── */}
+          <div className="viz-tab-bar">
+            <button
+              className={`viz-tab ${activePanel === 'memory' ? 'active' : ''}`}
+              onClick={() => setActivePanel('memory')}
+            >
+              Memory &amp; Variables
+            </button>
+            <button
+              className={`viz-tab ${activePanel === 'stack' ? 'active' : ''}`}
+              onClick={() => setActivePanel('stack')}
+            >
+              Call Stack
+            </button>
+            <button
+              className={`viz-tab ${activePanel === 'console' ? 'active' : ''}`}
+              onClick={() => setActivePanel('console')}
+            >
+              Console
+            </button>
+            {frames.length > 0 && (
+              <span className="step-indicator">
+                Step {currentStep + 1} / {frames.length}
+              </span>
+            )}
+          </div>
+
+          {/* ── Memory & Variables Panel ─────────────────────────────── */}
+          {activePanel === 'memory' && (
             <div className="viz-content">
               {frames.length === 0 ? (
                 previewVars.length > 0 ? (
@@ -349,8 +371,6 @@ for (let i = 0; i < arr.length; i++) {
                             {item.name} <span className="preview-tag">live preview</span>
                           </div>
                         );
-
-                        // ── 2-D matrix grid in live preview ──────────────────
                         const isPreviewMatrix = item.value.length > 0 && Array.isArray(item.value[0]);
                         if (isPreviewMatrix) {
                           const numCols = Math.max(...item.value.map(r => Array.isArray(r) ? r.length : 0), 0);
@@ -371,11 +391,7 @@ for (let i = 0; i < arr.length; i++) {
                                     </div>
                                     {Array.from({ length: numCols }, (_, ci) => {
                                       const cellVal = Array.isArray(row) && ci < row.length ? row[ci] : '';
-                                      return (
-                                        <div key={ci} className="matrix-cell">
-                                          {JSON.stringify(cellVal)}
-                                        </div>
-                                      );
+                                      return <div key={ci} className="matrix-cell">{JSON.stringify(cellVal)}</div>;
                                     })}
                                   </div>
                                 ))}
@@ -383,8 +399,6 @@ for (let i = 0; i < arr.length; i++) {
                             </div>
                           );
                         }
-
-                        // ── 1-D array in live preview (existing) ─────────────
                         const loopPointers = previewVars.filter(
                           v => v.isLoopPointer && v.targetArray === item.name && typeof v.value === 'number'
                         );
@@ -423,12 +437,7 @@ for (let i = 0; i < arr.length; i++) {
                           </div>
                         );
                       }
-
-                      // Do NOT show separate card if it is already rendered as an array pointer
-                      if (item.isLoopPointer && item.targetArray) {
-                        return null;
-                      }
-
+                      if (item.isLoopPointer && item.targetArray) return null;
                       return (
                         <div key={`preview-${item.name}`} className="memory-item var-box preview-mode">
                           <span className="var-name">
@@ -451,10 +460,7 @@ for (let i = 0; i < arr.length; i++) {
 
                     if (Array.isArray(value)) {
                       const ptrInfo = arrayPointerMap[name] || { matrix: false, ptrs: [] };
-
-                      // ── 2-D matrix grid view ──────────────────────────────
                       if (ptrInfo.matrix) {
-                        const numRows = value.length;
                         const numCols = Math.max(...value.map(r => Array.isArray(r) ? r.length : 0), 0);
                         const { rowPtrs, colPtrs } = ptrInfo;
                         const activeRows = new Set(rowPtrs.map(p => p.index));
@@ -463,21 +469,19 @@ for (let i = 0; i < arr.length; i++) {
                           <div key={dynamicKey} className={`memory-item matrix-container ${flashClass}`}>
                             <div className="var-label">{name}</div>
                             <div className="matrix-table-wrap">
-                              {/* Column index header */}
                               <div className="matrix-row matrix-header-row">
                                 <div className="matrix-row-label matrix-corner" />
                                 {Array.from({ length: numCols }, (_, ci) => (
                                   <div key={ci} className={`matrix-col-idx ${activeCols.has(ci) ? 'active-col-idx' : ''}`}>{ci}</div>
                                 ))}
                               </div>
-                              {/* Data rows */}
                               {value.map((row, ri) => {
                                 const rowActive = activeRows.has(ri);
                                 const rowBadges = rowPtrs.filter(p => p.index === ri);
                                 return (
                                   <div key={ri} className={`matrix-row${rowActive ? ' matrix-row-active' : ''}`}>
                                     <div className="matrix-row-label">
-                                      <span className="matrix-row-idx">{ri}</span>
+                                      <span className={`matrix-row-idx ${rowActive ? 'active-row-idx' : ''}`}>{ri}</span>
                                       {rowBadges.map(p => (
                                         <span key={p.name} className="matrix-row-pointer-badge">{p.name}</span>
                                       ))}
@@ -495,7 +499,6 @@ for (let i = 0; i < arr.length; i++) {
                                   </div>
                                 );
                               })}
-                              {/* Column pointer badges at bottom */}
                               {colPtrs.length > 0 && (
                                 <div className="matrix-row matrix-ptr-row">
                                   <div className="matrix-row-label" />
@@ -515,13 +518,9 @@ for (let i = 0; i < arr.length; i++) {
                           </div>
                         );
                       }
-
-                      // ── 1-D array view ────────────────────────────────────
                       const activeArrayIndices = getActiveIndicesForArray(name);
                       const pointersForThisArray = ptrInfo.ptrs || [];
-                      const outOfBoundsPointers = pointersForThisArray.filter(
-                        p => p.index >= value.length || p.index < 0
-                      );
+                      const outOfBoundsPointers = pointersForThisArray.filter(p => p.index >= value.length || p.index < 0);
                       return (
                         <div key={dynamicKey} className={`memory-item array-container ${flashClass}`}>
                           <div className="var-label">{name}</div>
@@ -529,10 +528,7 @@ for (let i = 0; i < arr.length; i++) {
                             {value.map((item, index) => {
                               const matchingPointers = pointersForThisArray.filter(p => p.index === index);
                               return (
-                                <div
-                                  key={index}
-                                  className={`array-item ${activeArrayIndices.includes(index) ? 'active-index' : ''}`}
-                                >
+                                <div key={index} className={`array-item ${activeArrayIndices.includes(index) ? 'active-index' : ''}`}>
                                   <span className="array-index">{index}</span>
                                   <span className="array-value">{JSON.stringify(item)}</span>
                                   {matchingPointers.length > 0 && (
@@ -558,12 +554,7 @@ for (let i = 0; i < arr.length; i++) {
                         </div>
                       );
                     }
-
-                    // Do NOT show separate primitive card if it is attached as an active array pointer
-                    if (attachedPointers.has(name)) {
-                      return null;
-                    }
-
+                    if (attachedPointers.has(name)) return null;
                     if (typeof value === 'object' && value !== null) {
                       return (
                         <div key={dynamicKey} className={`memory-item object-container ${flashClass}`}>
@@ -579,7 +570,6 @@ for (let i = 0; i < arr.length; i++) {
                         </div>
                       );
                     }
-
                     return (
                       <div key={dynamicKey} className={`memory-item var-box ${flashClass}`}>
                         <span className="var-name">{name}</span>
@@ -590,11 +580,10 @@ for (let i = 0; i < arr.length; i++) {
                 </div>
               )}
             </div>
-          </div>
+          )}
 
-          {/* Middle Right: Call Stack (25% height) */}
-          <div className="viz-section stack-section">
-            <div className="pane-header"><span>Call Stack</span></div>
+          {/* ── Call Stack Panel ─────────────────────────────────────── */}
+          {activePanel === 'stack' && (
             <div className="viz-content">
               {currentStack.length === 0 ? (
                 <div className="empty-state">No active functions.</div>
@@ -607,43 +596,24 @@ for (let i = 0; i < arr.length; i++) {
                   ))}
                 </div>
               )}
-              {currentEvent && (
-                <div className="event-log">
-                  {currentEvent}
-                </div>
+              {currentEvent && <div className="event-log">{currentEvent}</div>}
+            </div>
+          )}
+
+          {/* ── Console Panel ────────────────────────────────────────── */}
+          {activePanel === 'console' && (
+            <div className="viz-content console-content">
+              {currentLogs.length === 0 ? (
+                <div className="empty-state">No output.</div>
+              ) : (
+                currentLogs.map((log, index) => (
+                  <div key={index} className={`console-line ${log.includes('⚠️') ? 'error-log' : ''}`}>
+                    <span className="console-arrow">›</span> {log}
+                  </div>
+                ))
               )}
             </div>
-          </div>
-
-          {/* Bottom Right: Console Output (30% height) */}
-          {/* Bottom Right: Console Output (Collapsible) */}
-          <div className={`viz-section console-section ${isConsoleOpen ? '' : 'minimized'}`}>
-            <div className="pane-header">
-              <span>Console</span>
-              <button
-                onClick={() => setIsConsoleOpen(!isConsoleOpen)}
-                className="pane-toggle-btn"
-                title={isConsoleOpen ? "Minimize Console" : "Maximize Console"}
-              >
-                {isConsoleOpen ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-              </button>
-            </div>
-
-            {/* Only render the content if the console is open */}
-            {isConsoleOpen && (
-              <div className="viz-content console-content">
-                {currentLogs.length === 0 ? (
-                  <div className="empty-state">No output.</div>
-                ) : (
-                  currentLogs.map((log, index) => (
-                    <div key={index} className={`console-line ${log.includes('⚠️') ? 'error-log' : ''}`}>
-                      <span className="console-arrow">›</span> {log}
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </main>
     </div>
