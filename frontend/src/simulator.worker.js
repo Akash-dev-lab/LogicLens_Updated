@@ -50,7 +50,7 @@ self.__popStack = (returnValue, line) => {
 self.__traceLog = (line, ...args) => {
   const logString = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
   consoleLogs.push(logString);
-  
+
   executionFrames.push({
     memory: structuredClone(currentMemory),
     stack: [...callStack],
@@ -60,7 +60,7 @@ self.__traceLog = (line, ...args) => {
   });
 };
 
-self.onmessage = function(e) {
+self.onmessage = function (e) {
   const { instrumentedCode } = e.data;
   executionFrames = [];
   currentMemory = {};

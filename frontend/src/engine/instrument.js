@@ -57,33 +57,33 @@ export function instrumentCode(sourceCode) {
     // NEW: Track variables inside for-loop headers (i, j)
     ForStatement(path) {
       if (path.node.__instrumented) return;
-      
+
       // Ensure the loop body is a block statement { ... }
       if (path.node.body.type !== 'BlockStatement') {
         path.node.body = { type: 'BlockStatement', body: [path.node.body] };
       }
-      
+
       const varsToTrace = new Set();
-      
+
       // 1. Find variables in the init statement (let i = 0)
       if (path.node.init && path.node.init.type === 'VariableDeclaration') {
         path.node.init.declarations.forEach(dec => {
           if (dec.id.type === 'Identifier') varsToTrace.add(dec.id.name);
         });
       }
-      
+
       // 2. Find variables in the update statement (i++)
       if (path.node.update && path.node.update.type === 'UpdateExpression' && path.node.update.argument.type === 'Identifier') {
         varsToTrace.add(path.node.update.argument.name);
       }
-      
+
       // 3. Inject tracking hooks at the START of the loop body
       const traceNodes = Array.from(varsToTrace).map(v => {
         const node = parse(`typeof ${v} !== 'undefined' && __traceVariable("${v}", ${v}, ${path.node.loc.start.line});`).program.body[0];
         node.__instrumented = true;
         return node;
       });
-      
+
       path.node.body.body.unshift(...traceNodes);
       path.node.__instrumented = true;
     },
@@ -104,24 +104,24 @@ export function instrumentCode(sourceCode) {
 
       const line = path.node.loc.start.line;
       const tempName = path.scope.generateUid("retVal");
-      
+
       const newNodes = parse(
         `let ${tempName} = 0; __popStack(${tempName}, ${line}); return ${tempName};`,
         { allowReturnOutsideFunction: true }
       ).program.body;
-      
+
       // Replace the '0' with the actual return expression
       newNodes[0].declarations[0].init = path.node.argument;
-      
+
       // CRITICAL FIX: Mark the newly generated return statement so Babel ignores it!
       const newReturnNode = newNodes[2]; // Index 0 is let, 1 is __popStack, 2 is return
       if (newReturnNode) {
         newReturnNode.__instrumented = true;
       }
-      
+
       path.replaceWithMultiple(newNodes);
     },
-    
+
     // 6. Intercept console.log to create an immediate frame
     CallExpression(path) {
       if (path.node.__instrumented) return;
@@ -137,15 +137,15 @@ export function instrumentCode(sourceCode) {
       ) {
         const line = path.node.loc.start.line;
         const args = path.node.arguments;
-        
+
         // Safely convert arguments back to code strings
         const argsString = args.map(arg => generate(arg).code).join(', ');
-        
+
         // SAFETY CHECK: Ensure argsString isn't empty
-        const codeToParse = argsString.length > 0 
-          ? `__traceLog(${line}, ${argsString})` 
+        const codeToParse = argsString.length > 0
+          ? `__traceLog(${line}, ${argsString})`
           : `__traceLog(${line})`;
-          
+
         const traceCall = parse(codeToParse).program.body[0].expression;
         traceCall.__instrumented = true;
         path.replaceWith(traceCall);

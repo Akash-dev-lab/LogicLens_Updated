@@ -215,6 +215,9 @@
   color: #8b949e;
   margin-bottom: 6px;
   font-family: 'JetBrains Mono', monospace;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .var-box .var-value {
@@ -249,6 +252,26 @@
   color: #58a6ff;
   font-weight: 600;
   font-family: 'JetBrains Mono', monospace;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-tag {
+  font-size: 10px;
+  font-weight: 500;
+  color: #8b949e;
+  border: 1px solid #30363d;
+  background-color: #21262d;
+  padding: 1px 6px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.empty-array-item {
+  color: #6e7681;
+  font-style: italic;
 }
 
 /* Array Styling */
@@ -256,9 +279,10 @@
   display: flex;
   border: 1px solid #30363d;
   border-radius: 6px;
-  overflow: hidden;
+  overflow: visible; /* Allows pointer badge to float cleanly beneath each cell */
   width: fit-content;
   background-color: #161b22;
+  margin-bottom: 28px; /* Reserves space for pointer badges below cells */
 }
 
 .array-item {
@@ -268,6 +292,21 @@
   padding: 8px 16px;
   border-right: 1px solid #30363d;
   transition: all 0.3s ease;
+  position: relative; /* Anchor for pointer container */
+}
+
+.array-cell-pointer-container {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  z-index: 5;
+  white-space: nowrap;
 }
 
 .array-item:last-child {
@@ -421,15 +460,111 @@
   color: #c9d1d9;
 }
 
-/* Highlight the array index currently being accessed by a pointer */
+/* Highlight the array index currently being accessed by a pointer (Yellow theme) */
 .array-item.active-index {
-  background-color: rgba(88, 166, 255, 0.15);
-  box-shadow: inset 0 0 0 2px #58a6ff;
+  background-color: rgba(249, 211, 66, 0.15);
+  box-shadow: inset 0 0 0 2px #f9d342;
   transform: translateY(-3px); /* Makes it pop out slightly */
 }
 
 .array-item.active-index .array-value {
-  color: #58a6ff;
+  color: #f9d342;
+}
+
+/* Subtle breathing / glow animation for the active index (Yellow glow) */
+.array-item.active-index .array-index {
+  color: #f9d342;
+  font-weight: 700;
+  animation: indexBreath 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes indexBreath {
+  0% {
+    text-shadow: 0 0 3px rgba(249, 211, 66, 0.4);
+    opacity: 0.85;
+  }
+  100% {
+    text-shadow: 0 0 10px rgba(249, 211, 66, 0.9), 0 0 15px rgba(249, 211, 66, 0.6);
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+/* Array Pointer Row beneath array cells */
+.array-pointers-row {
+  display: flex;
+  position: relative;
+  width: fit-content;
+  margin-top: 4px;
+}
+
+.array-pointer-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 28px;
+  position: relative;
+}
+
+.array-pointer-badge {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background-color: #f9d342;
+  color: #0d1117;
+  font-size: 11px;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 2px 7px;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 0 10px rgba(249, 211, 66, 0.6);
+  animation: pointerPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 0.25s ease;
+}
+
+.array-pointer-arrow {
+  font-size: 9px;
+  line-height: 1;
+}
+
+.array-pointer-name {
+  line-height: 1;
+}
+
+@keyframes pointerPop {
+  0% {
+    transform: translateY(4px) scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Loop Completed / Exit Status Indicator */
+.loop-exit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #8b949e;
+  background-color: rgba(139, 148, 158, 0.1);
+  border: 1px dashed #30363d;
+  padding: 3px 8px;
+  border-radius: 4px;
+  width: fit-content;
+  animation: fadeIn 0.3s ease;
+}
+
+.loop-exit-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #f0883e;
 }
 
 /* =========================================
