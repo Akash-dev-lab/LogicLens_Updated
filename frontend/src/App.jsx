@@ -156,49 +156,87 @@ for (let i = 0; i < arr.length; i++) {
   const currentLogs = frames.length > 0 ? frames[currentStep].logs : [];
   const prevMemory = currentStep > 0 ? frames[currentStep - 1].memory : {};
 
-  // Determine pointers associated with each array in simulation mode
+  // ── helper: detect 2-D matrix (array of arrays) ──────────────────────────
+  const isMatrix = (val) =>
+    Array.isArray(val) && val.length > 0 && Array.isArray(val[0]);
+
+  // Name hints to classify pointer as row-pointer vs col-pointer in 2-D arrays
+  const ROW_HINTS = new Set(['top','bottom','row','r','i','startrow','endrow','rowstart','rowend']);
+  const COL_HINTS = new Set(['left','right','col','c','j','startcol','endcol','colstart','colend']);
+
+  // Statically inferred target array from preview (for 1-D loop pointer targeting)
+  const staticTargetMap = {};
+  previewVars.forEach(v => { if (v.targetArray) staticTargetMap[v.name] = v.targetArray; });
+
+  // Build pointer map for ALL arrays — supports 1-D and 2-D
   const arrayPointerMap = {};
+  const attachedPointers = new Set();
+
+  // ALL integer variables in current memory are candidates
+  const intVars = Object.entries(currentMemory)
+    .filter(([, v]) => typeof v === 'number' && Number.isInteger(v))
+    .map(([name, value]) => ({ name, value }));
+
   const arrayNamesInMem = Object.keys(currentMemory).filter(k => Array.isArray(currentMemory[k]));
 
-  // Track pointer variables attached to arrays during simulation
-  const attachedPointers = new Set();
-  const pointerCandidateVars = ['i', 'j', 'k', 'mid', 'left', 'right', 'minIdx', 'low', 'high', 'pivot'];
-
-  // Statically inferred target array from preview
-  const staticTargetMap = {};
-  previewVars.forEach(v => {
-    if (v.targetArray) {
-      staticTargetMap[v.name] = v.targetArray;
-    }
-  });
-
   arrayNamesInMem.forEach(arrName => {
-    arrayPointerMap[arrName] = [];
     const arr = currentMemory[arrName];
-    if (Array.isArray(arr)) {
-      pointerCandidateVars.forEach(pVar => {
-        const pVal = currentMemory[pVar];
-        if (typeof pVal === 'number') {
-          // If this pointer has a known target array from preview, match it; otherwise if only one array exists or index is in range
-          const preferredArray = staticTargetMap[pVar];
-          if (preferredArray) {
-            if (preferredArray === arrName) {
-              arrayPointerMap[arrName].push({ name: pVar, index: pVal });
-              attachedPointers.add(pVar);
-            }
-          } else if (arrayNamesInMem.length === 1 || (pVal >= 0 && pVal <= arr.length)) {
-            arrayPointerMap[arrName].push({ name: pVar, index: pVal });
-            attachedPointers.add(pVar);
-          }
+
+    if (isMatrix(arr)) {
+      // 2-D: classify each int variable as row or col pointer by name hint + range
+      const numRows = arr.length;
+      const numCols = Math.max(...arr.map(r => Array.isArray(r) ? r.length : 0), 0);
+      const rowPtrs = [], colPtrs = [];
+
+      intVars.forEach(({ name, value }) => {
+        if (name === arrName || attachedPointers.has(name)) return;
+        const lname = name.toLowerCase();
+        const rowHint = ROW_HINTS.has(lname);
+        const colHint = COL_HINTS.has(lname);
+        const inRow = value >= 0 && value < numRows;
+        const inCol = value >= 0 && value < numCols;
+        if (rowHint && inRow)        { rowPtrs.push({ name, index: value }); attachedPointers.add(name); }
+        else if (colHint && inCol)   { colPtrs.push({ name, index: value }); attachedPointers.add(name); }
+        else if (!rowHint && !colHint) {
+          if (inRow && !inCol)       { rowPtrs.push({ name, index: value }); attachedPointers.add(name); }
+          else if (inCol && !inRow)  { colPtrs.push({ name, index: value }); attachedPointers.add(name); }
         }
       });
+      arrayPointerMap[arrName] = { matrix: true, rowPtrs, colPtrs };
+
+    } else {
+      // 1-D: only variables whose name looks like an index/pointer are candidates
+      // (prevents temp, sum, count, ans, result, etc. from showing as pointers)
+      const PTR_HINTS_1D = new Set([
+        // single letters commonly used as loop/pointer vars
+        'i','j','k','l','r','p','q',
+        // named pointers
+        'left','right','top','bottom','start','end','mid','middle',
+        'lo','hi','low','high','front','rear','head','tail',
+        'ptr','pos','idx','index','curr','current','prev','next',
+        'slow','fast','pivot','partition','minidx','maxidx',
+        'startidx','endidx','startptr','endptr',
+      ]);
+      const ptrs = [];
+      intVars.forEach(({ name, value }) => {
+        if (name === arrName || attachedPointers.has(name)) return;
+        if (!PTR_HINTS_1D.has(name.toLowerCase())) return; // skip non-pointer names
+        const preferred = staticTargetMap[name];
+        if (preferred && preferred !== arrName) return;
+        if (value >= 0 && value <= arr.length) {
+          ptrs.push({ name, index: value });
+          attachedPointers.add(name);
+        }
+      });
+      arrayPointerMap[arrName] = { matrix: false, ptrs };
     }
   });
 
-  // Calculate active indices per array
+  // Helper: active indices for 1-D arrays
   const getActiveIndicesForArray = (arrName) => {
-    const ptrs = arrayPointerMap[arrName] || [];
-    return ptrs.map(p => p.index).filter(idx => typeof idx === 'number');
+    const info = arrayPointerMap[arrName];
+    if (!info || info.matrix) return [];
+    return info.ptrs.map(p => p.index);
   };
 
   return (
@@ -306,16 +344,53 @@ for (let i = 0; i < arr.length; i++) {
                   <div className="memory-grid">
                     {previewVars.map((item) => {
                       if (item.type === 'array') {
-                        // Find any loop pointers targeting this array in preview
+                        const previewLabel = (
+                          <div className="var-label">
+                            {item.name} <span className="preview-tag">live preview</span>
+                          </div>
+                        );
+
+                        // ── 2-D matrix grid in live preview ──────────────────
+                        const isPreviewMatrix = item.value.length > 0 && Array.isArray(item.value[0]);
+                        if (isPreviewMatrix) {
+                          const numCols = Math.max(...item.value.map(r => Array.isArray(r) ? r.length : 0), 0);
+                          return (
+                            <div key={`preview-${item.name}`} className="memory-item matrix-container preview-mode">
+                              {previewLabel}
+                              <div className="matrix-table-wrap">
+                                <div className="matrix-row matrix-header-row">
+                                  <div className="matrix-row-label matrix-corner" />
+                                  {Array.from({ length: numCols }, (_, ci) => (
+                                    <div key={ci} className="matrix-col-idx">{ci}</div>
+                                  ))}
+                                </div>
+                                {item.value.map((row, ri) => (
+                                  <div key={ri} className="matrix-row">
+                                    <div className="matrix-row-label">
+                                      <span className="matrix-row-idx">{ri}</span>
+                                    </div>
+                                    {Array.from({ length: numCols }, (_, ci) => {
+                                      const cellVal = Array.isArray(row) && ci < row.length ? row[ci] : '';
+                                      return (
+                                        <div key={ci} className="matrix-cell">
+                                          {JSON.stringify(cellVal)}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // ── 1-D array in live preview (existing) ─────────────
                         const loopPointers = previewVars.filter(
                           v => v.isLoopPointer && v.targetArray === item.name && typeof v.value === 'number'
                         );
-
                         return (
                           <div key={`preview-${item.name}`} className="memory-item array-container preview-mode">
-                            <div className="var-label">
-                              {item.name} <span className="preview-tag">live preview</span>
-                            </div>
+                            {previewLabel}
                             <div className="array-box">
                               {item.value.length === 0 ? (
                                 <div className="array-item empty-array-item">
@@ -375,12 +450,78 @@ for (let i = 0; i < arr.length; i++) {
                     const dynamicKey = `${name}-${JSON.stringify(value)}`;
 
                     if (Array.isArray(value)) {
+                      const ptrInfo = arrayPointerMap[name] || { matrix: false, ptrs: [] };
+
+                      // ── 2-D matrix grid view ──────────────────────────────
+                      if (ptrInfo.matrix) {
+                        const numRows = value.length;
+                        const numCols = Math.max(...value.map(r => Array.isArray(r) ? r.length : 0), 0);
+                        const { rowPtrs, colPtrs } = ptrInfo;
+                        const activeRows = new Set(rowPtrs.map(p => p.index));
+                        const activeCols = new Set(colPtrs.map(p => p.index));
+                        return (
+                          <div key={dynamicKey} className={`memory-item matrix-container ${flashClass}`}>
+                            <div className="var-label">{name}</div>
+                            <div className="matrix-table-wrap">
+                              {/* Column index header */}
+                              <div className="matrix-row matrix-header-row">
+                                <div className="matrix-row-label matrix-corner" />
+                                {Array.from({ length: numCols }, (_, ci) => (
+                                  <div key={ci} className={`matrix-col-idx ${activeCols.has(ci) ? 'active-col-idx' : ''}`}>{ci}</div>
+                                ))}
+                              </div>
+                              {/* Data rows */}
+                              {value.map((row, ri) => {
+                                const rowActive = activeRows.has(ri);
+                                const rowBadges = rowPtrs.filter(p => p.index === ri);
+                                return (
+                                  <div key={ri} className={`matrix-row${rowActive ? ' matrix-row-active' : ''}`}>
+                                    <div className="matrix-row-label">
+                                      <span className="matrix-row-idx">{ri}</span>
+                                      {rowBadges.map(p => (
+                                        <span key={p.name} className="matrix-row-pointer-badge">{p.name}</span>
+                                      ))}
+                                    </div>
+                                    {Array.from({ length: numCols }, (_, ci) => {
+                                      const cellVal = Array.isArray(row) && ci < row.length ? row[ci] : '';
+                                      const colActive = activeCols.has(ci);
+                                      const isIntersect = rowActive && colActive;
+                                      return (
+                                        <div key={ci} className={`matrix-cell${rowActive ? ' matrix-cell-row-active' : ''}${colActive ? ' matrix-cell-col-active' : ''}${isIntersect ? ' matrix-cell-intersection' : ''}`}>
+                                          {JSON.stringify(cellVal)}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })}
+                              {/* Column pointer badges at bottom */}
+                              {colPtrs.length > 0 && (
+                                <div className="matrix-row matrix-ptr-row">
+                                  <div className="matrix-row-label" />
+                                  {Array.from({ length: numCols }, (_, ci) => {
+                                    const badges = colPtrs.filter(p => p.index === ci);
+                                    return (
+                                      <div key={ci} className="matrix-col-ptr-cell">
+                                        {badges.map(p => (
+                                          <span key={p.name} className="matrix-col-pointer-badge">▲ {p.name}</span>
+                                        ))}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // ── 1-D array view ────────────────────────────────────
                       const activeArrayIndices = getActiveIndicesForArray(name);
-                      const pointersForThisArray = arrayPointerMap[name] || [];
+                      const pointersForThisArray = ptrInfo.ptrs || [];
                       const outOfBoundsPointers = pointersForThisArray.filter(
                         p => p.index >= value.length || p.index < 0
                       );
-
                       return (
                         <div key={dynamicKey} className={`memory-item array-container ${flashClass}`}>
                           <div className="var-label">{name}</div>
@@ -408,14 +549,10 @@ for (let i = 0; i < arr.length; i++) {
                               );
                             })}
                           </div>
-
-                          {/* Loop completion indicator if pointer has progressed out of bounds (e.g. i >= arr.length) */}
                           {outOfBoundsPointers.length > 0 && (
                             <div className="loop-exit-badge">
                               <span className="loop-exit-dot"></span>
-                              <span>
-                                {outOfBoundsPointers.map(p => `${p.name} = ${p.index} (loop exit)`).join(', ')}
-                              </span>
+                              <span>{outOfBoundsPointers.map(p => `${p.name} = ${p.index} (loop exit)`).join(', ')}</span>
                             </div>
                           )}
                         </div>
